@@ -5,6 +5,7 @@ import 'package:flame/game.dart';
 import '../game/letter_game.dart';
 import '../game/user_settings.dart';
 import 'loading_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class GameScreen extends StatefulWidget {
   final UserSettings settings;
@@ -100,7 +101,7 @@ class _GameScreenState extends State<GameScreen> {
                                 return Text(
                                   'Game Over\nScore: $score\nHigh Score: $highScore',
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(
+                                  style: GoogleFonts.orbitron(
                                     color: Colors.white,
                                     fontSize: 24,
                                   ),
@@ -157,7 +158,7 @@ class _GameScreenState extends State<GameScreen> {
                     builder: (context, score, _) {
                       return Text(
                         'Score: $score',
-                        style: const TextStyle(
+                        style: GoogleFonts.orbitron(
                           color: Colors.white,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -182,7 +183,7 @@ class _GameScreenState extends State<GameScreen> {
 
                         return Text(
                           'Time: $secondsLeft',
-                          style: TextStyle(
+                          style: GoogleFonts.orbitron(
                             color: color,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
