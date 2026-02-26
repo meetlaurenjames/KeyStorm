@@ -4,13 +4,12 @@ import 'dart:math';
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'user_settings.dart';
 import 'letter_component.dart';
 
-class LetterGame extends FlameGame with KeyboardHandler {
+class LetterGame extends FlameGame {
   final UserSettings settings;
 
   LetterGame({required this.settings});
@@ -36,6 +35,7 @@ class LetterGame extends FlameGame with KeyboardHandler {
 
     if (settings.mode == GameMode.timed) {
       timeNotifier.value = settings.timedDurationSeconds;
+
       _timeTimer = async.Timer.periodic(
         const Duration(seconds: 1),
         (timer) {
@@ -53,6 +53,7 @@ class LetterGame extends FlameGame with KeyboardHandler {
   }
 
   void _startSpawning() {
+    _spawnTimer?.cancel();
     _spawnTimer = async.Timer.periodic(
       Duration(milliseconds: (_spawnInterval * 1000).toInt()),
       (_) => _spawnLetter(),
@@ -60,9 +61,9 @@ class LetterGame extends FlameGame with KeyboardHandler {
   }
 
   void _spawnLetter() {
-    final letter =
-        String.fromCharCode(_random.nextInt(26) + 65);
+    if (size.x <= 0) return;
 
+    final letter = String.fromCharCode(_random.nextInt(26) + 65);
     final x = _random.nextDouble() * (size.x - 40);
 
     final component = LetterComponent(
@@ -75,6 +76,26 @@ class LetterGame extends FlameGame with KeyboardHandler {
     letters.add(component);
   }
 
+  /// ← NEW METHOD for Windows & Desktop keyboard input
+  void handleKey(String key) {
+    final pressed = key.toUpperCase();
+    if (pressed.length != 1) return;
+
+    for (final letter in letters.toList()) {
+      if (letter.letter.toUpperCase() == pressed) {
+        scoreNotifier.value++;
+        letters.remove(letter);
+        letter.removeFromParent();
+        _increaseDifficulty();
+        return;
+      }
+    }
+
+    if (settings.mode == GameMode.survival) {
+      gameOver();
+    }
+  }
+
   @override
   void render(Canvas canvas) {
     canvas.drawRect(
@@ -84,43 +105,10 @@ class LetterGame extends FlameGame with KeyboardHandler {
     super.render(canvas);
   }
 
-  @override
-  bool onKeyEvent(
-    KeyEvent event,
-    Set<LogicalKeyboardKey> keysPressed,
-  ) {
-    if (event is! KeyDownEvent) {
-      return false;
-    }
-
-    final pressed = event.logicalKey.keyLabel.toUpperCase();
-    if (pressed.length != 1) {
-      return false;
-    }
-
-    for (final letter in letters.toList()) {
-      if (letter.letter.toUpperCase() == pressed) {
-        scoreNotifier.value++;
-        letters.remove(letter);
-        letter.removeFromParent();
-        _increaseDifficulty();
-        return true;
-      }
-    }
-
-    if (settings.mode == GameMode.survival) {
-      gameOver();
-    }
-
-    return true;
-  }
-
   void _increaseDifficulty() {
-    if (scoreNotifier.value % 10 == 0) {
+    if (scoreNotifier.value % 10 == 0 && scoreNotifier.value > 0) {
       _letterSpeed += 20;
-      _spawnInterval =
-          (_spawnInterval - 0.1).clamp(0.4, 2.0);
-      _spawnTimer?.cancel();
+      _spawnInterval = (_spawnInterval - 0.1).clamp(0.4, 2.0);
       _startSpawning();
     }
   }
@@ -132,31 +120,28 @@ class LetterGame extends FlameGame with KeyboardHandler {
 
     if (scoreNotifier.value > highScoreNotifier.value) {
       highScoreNotifier.value = scoreNotifier.value;
-      final prefs =
-          await SharedPreferences.getInstance();
-      await prefs.setInt(
-          'highscore', highScoreNotifier.value);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('highscore', highScoreNotifier.value);
     }
 
     overlays.add('GameOver');
   }
 
   Future<void> _loadHighScore() async {
-    final prefs =
-        await SharedPreferences.getInstance();
-    highScoreNotifier.value =
-        prefs.getInt('highscore') ?? 0;
+    final prefs = await SharedPreferences.getInstance();
+    highScoreNotifier.value = prefs.getInt('highscore') ?? 0;
   }
 
   void reset() {
-    children.whereType<LetterComponent>().forEach((e) {
-      e.removeFromParent();
-    });
+    for (final letter in letters.toList()) {
+      letter.removeFromParent();
+    }
 
     letters.clear();
     scoreNotifier.value = 0;
     _letterSpeed = 120;
     _spawnInterval = 1.2;
+
     overlays.remove('GameOver');
     resumeEngine();
     _startSpawning();

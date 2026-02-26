@@ -1,34 +1,67 @@
 import 'package:flutter/material.dart';
-import 'package:flame/game.dart';
 import 'package:flutter/services.dart';
+import 'package:flame/game.dart';
 
 import '../game/letter_game.dart';
 import '../game/user_settings.dart';
 import 'loading_screen.dart';
 
-class GameScreen extends StatelessWidget {
+class GameScreen extends StatefulWidget {
   final UserSettings settings;
 
   const GameScreen({super.key, required this.settings});
 
   @override
-  Widget build(BuildContext context) {
-    final game = LetterGame(settings: settings);
+  State<GameScreen> createState() => _GameScreenState();
+}
 
+class _GameScreenState extends State<GameScreen> {
+  late final LetterGame game;
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    game = LetterGame(settings: widget.settings);
+
+    // Request focus automatically after build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent) {
+      final key = event.logicalKey.keyLabel;
+      if (key.isNotEmpty) {
+        game.handleKey(key); // send key to LetterGame
+      }
+    }
+    return KeyEventResult.handled;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: Focus(
+        focusNode: _focusNode,
         autofocus: true,
-        onKeyEvent: (node, event) {
-          final handled = game.onKeyEvent(event, const {});
-          return handled ? KeyEventResult.handled : KeyEventResult.ignored;
-        },
+        onKeyEvent: _onKey,
         child: Stack(
           children: [
+            // GameWidget
             GameWidget(
               game: game,
               overlayBuilderMap: {
                 'GameOver': (context, gameInstance) {
                   final g = gameInstance as LetterGame;
+
                   return Center(
                     child: Container(
                       padding: const EdgeInsets.all(20),
@@ -36,29 +69,42 @@ class GameScreen extends StatelessWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            'Game Over\nScore: ${g.scoreNotifier.value}\nHigh Score: ${g.highScoreNotifier.value}',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 24),
+                          ValueListenableBuilder<int>(
+                            valueListenable: g.scoreNotifier,
+                            builder: (context, score, _) {
+                              return ValueListenableBuilder<int>(
+                                valueListenable: g.highScoreNotifier,
+                                builder: (context, highScore, _) {
+                                  return Text(
+                                    'Game Over\nScore: $score\nHigh Score: $highScore',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 24,
+                                    ),
+                                  );
+                                },
+                              );
+                            },
                           ),
                           const SizedBox(height: 20),
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               ElevatedButton(
-                                onPressed: g.reset,
+                                onPressed: () {
+                                  g.reset();
+                                  _focusNode.requestFocus();
+                                },
                                 child: const Text('Restart'),
                               ),
                               const SizedBox(width: 12),
                               ElevatedButton(
                                 onPressed: () {
-                                  g.overlays.remove('GameOver');
                                   Navigator.of(context).pushAndRemoveUntil(
                                     MaterialPageRoute(
                                       builder: (_) => LoadingScreen(
-                                        settings: UserSettings(),
+                                        settings: widget.settings,
                                       ),
                                     ),
                                     (route) => false,
@@ -75,12 +121,15 @@ class GameScreen extends StatelessWidget {
                 }
               },
             ),
+
+            // Top HUD: Score + Timer
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    // Score display
                     ValueListenableBuilder<int>(
                       valueListenable: game.scoreNotifier,
                       builder: (context, score, _) {
@@ -94,7 +143,9 @@ class GameScreen extends StatelessWidget {
                         );
                       },
                     ),
-                    if (settings.mode == GameMode.timed)
+
+                    // Timer display (only in Timed mode)
+                    if (widget.settings.mode == GameMode.timed)
                       ValueListenableBuilder<int>(
                         valueListenable: game.timeNotifier,
                         builder: (context, secondsLeft, _) {
