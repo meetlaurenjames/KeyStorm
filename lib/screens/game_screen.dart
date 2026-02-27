@@ -22,13 +22,13 @@ class _GameScreenState extends State<GameScreen> {
   final FocusNode _focusNode = FocusNode();
   final TextEditingController _controller = TextEditingController();
 
+  bool zenPaused = false;
+
   @override
   void initState() {
     super.initState();
-
     game = LetterGame(settings: widget.settings);
 
-    // Force keyboard open after build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
@@ -43,11 +43,8 @@ class _GameScreenState extends State<GameScreen> {
 
   void _handleTextInput(String value) {
     if (value.isEmpty) return;
-
     final key = value.characters.last;
     game.handleKey(key);
-
-    // Clear text so it doesn't accumulate
     _controller.clear();
   }
 
@@ -56,7 +53,6 @@ class _GameScreenState extends State<GameScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          /// Invisible TextField to force mobile keyboard
           Positioned(
             bottom: 0,
             left: 0,
@@ -71,20 +67,16 @@ class _GameScreenState extends State<GameScreen> {
                 enableSuggestions: false,
                 autocorrect: false,
                 showCursor: false,
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                ),
+                decoration: const InputDecoration(border: InputBorder.none),
               ),
             ),
           ),
 
-          /// Game
           GameWidget(
             game: game,
             overlayBuilderMap: {
               'GameOver': (context, gameInstance) {
                 final g = gameInstance as LetterGame;
-
                 return Center(
                   child: Container(
                     padding: const EdgeInsets.all(20),
@@ -145,52 +137,89 @@ class _GameScreenState extends State<GameScreen> {
             },
           ),
 
-          /// HUD (Score + Timer)
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  /// Score
-                  ValueListenableBuilder<int>(
-                    valueListenable: game.scoreNotifier,
-                    builder: (context, score, _) {
-                      return Text(
-                        'Score: $score',
-                        style: GoogleFonts.orbitron(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      );
-                    },
-                  ),
-
-                  /// Timer (Timed Mode Only)
-                  if (widget.settings.mode == GameMode.timed)
-                    ValueListenableBuilder<int>(
-                      valueListenable: game.timeNotifier,
-                      builder: (context, secondsLeft, _) {
-                        final Color color;
-                        if (secondsLeft <= 5) {
-                          color = Colors.red;
-                        } else if (secondsLeft <= 10) {
-                          color = Colors.yellow;
-                        } else {
-                          color = Colors.white;
-                        }
-
-                        return Text(
-                          'Time: $secondsLeft',
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      ValueListenableBuilder<int>(
+                        valueListenable: game.scoreNotifier,
+                        builder: (context, score, _) => Text(
+                          'Score: $score',
                           style: GoogleFonts.orbitron(
-                            color: color,
+                            color: Colors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
-                        );
-                      },
+                        ),
+                      ),
+
+                      if (widget.settings.mode == GameMode.timed)
+                        ValueListenableBuilder<int>(
+                          valueListenable: game.timeNotifier,
+                          builder: (context, secondsLeft, _) {
+                            final color = secondsLeft <= 5
+                                ? Colors.red
+                                : (secondsLeft <= 10 ? Colors.yellow : Colors.white);
+                            return Text(
+                              'Time: $secondsLeft',
+                              style: GoogleFonts.orbitron(
+                                color: color,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+
+                  if (widget.settings.mode == GameMode.zen) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (!zenPaused)
+                          ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                zenPaused = true;
+                                game.pauseZen();
+                              });
+                            },
+                            child: const Text('Pause'),
+                          ),
+                        if (zenPaused)
+                          Row(
+                            children: [
+                              ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    zenPaused = false;
+                                    game.resumeZen();
+                                  });
+                                },
+                                child: const Text('Resume'),
+                              ),
+                              const SizedBox(width: 10),
+                              ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    game.gameOver();
+                                    zenPaused = false;
+                                  });
+                                },
+                                child: const Text('Stop'),
+                              ),
+                            ],
+                          )
+                      ],
                     ),
+                  ]
                 ],
               ),
             ),
@@ -200,4 +229,3 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 }
-// this works

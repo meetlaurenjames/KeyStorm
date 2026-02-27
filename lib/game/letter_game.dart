@@ -26,6 +26,7 @@ class LetterGame extends FlameGame {
   double _letterSpeed = 120;
 
   final List<LetterComponent> letters = [];
+  bool _isPaused = false; // Zen pause flag
 
   @override
   Future<void> onLoad() async {
@@ -38,11 +39,13 @@ class LetterGame extends FlameGame {
       _timeTimer = async.Timer.periodic(
         const Duration(seconds: 1),
         (timer) {
-          if (timeNotifier.value > 0) {
-            timeNotifier.value--;
-          } else {
-            timer.cancel();
-            gameOver();
+          if (!_isPaused) {
+            if (timeNotifier.value > 0) {
+              timeNotifier.value--;
+            } else {
+              timer.cancel();
+              gameOver();
+            }
           }
         },
       );
@@ -55,7 +58,9 @@ class LetterGame extends FlameGame {
     _spawnTimer?.cancel();
     _spawnTimer = async.Timer.periodic(
       Duration(milliseconds: (_spawnInterval * 1000).toInt()),
-      (_) => _spawnLetter(),
+      (_) {
+        if (!_isPaused) _spawnLetter();
+      },
     );
   }
 
@@ -75,7 +80,31 @@ class LetterGame extends FlameGame {
     letters.add(component);
   }
 
+  /// Zen pause
+  void pauseZen() {
+    if (settings.mode != GameMode.zen) return;
+    _isPaused = true;
+    pauseEngine();
+    _spawnTimer?.cancel();
+    for (final letter in letters) {
+      letter.pause(); // freezes letters
+    }
+  }
+
+  /// Zen resume
+  void resumeZen() {
+    if (settings.mode != GameMode.zen) return;
+    _isPaused = false;
+    resumeEngine();
+    _startSpawning();
+    for (final letter in letters) {
+      letter.resume();
+    }
+  }
+
   void handleKey(String key) {
+    if (_isPaused && settings.mode == GameMode.zen) return;
+
     final pressed = key.toUpperCase();
     if (pressed.length != 1) return;
 
@@ -141,6 +170,7 @@ class LetterGame extends FlameGame {
     _spawnInterval = 1.2;
 
     overlays.remove('GameOver');
+    _isPaused = false;
     resumeEngine();
     _startSpawning();
   }

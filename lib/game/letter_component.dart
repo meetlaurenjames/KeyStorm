@@ -10,6 +10,8 @@ class LetterComponent extends PositionComponent with HasGameRef<LetterGame> {
   late TextPaint textPaint;
   final double speed;
 
+  bool _paused = false;
+
   LetterComponent({
     required this.letter,
     required Vector2 position,
@@ -39,9 +41,9 @@ class LetterComponent extends PositionComponent with HasGameRef<LetterGame> {
   @override
   void update(double dt) {
     super.update(dt);
+    if (_paused) return;
 
     if (!_hitAnimation) {
-      // Falling
       position.y += speed * dt;
       if (position.y > gameRef.size.y) {
         if (gameRef.settings.mode == GameMode.survival) {
@@ -51,12 +53,9 @@ class LetterComponent extends PositionComponent with HasGameRef<LetterGame> {
         removeFromParent();
       }
     } else {
-      // Hit animation: bounce up
       _hitTime += dt;
       position.y -= speed * dt * 1.5 * dt;
-      if (_hitTime > 0.2) {
-        removeFromParent();
-      }
+      if (_hitTime > 0.2) removeFromParent();
     }
   }
 
@@ -66,12 +65,10 @@ class LetterComponent extends PositionComponent with HasGameRef<LetterGame> {
     textPaint.render(canvas, letter, Vector2.zero());
   }
 
-  /// Called when the user hits the correct key
   void hit() {
     if (_hitAnimation) return;
     _hitAnimation = true;
 
-    // Bounce + glow
     textPaint = TextPaint(
       style: GoogleFonts.orbitron(
         fontSize: 36,
@@ -86,7 +83,6 @@ class LetterComponent extends PositionComponent with HasGameRef<LetterGame> {
       ]),
     );
 
-    // Tiny particles
     for (int i = 0; i < 5; i++) {
       final particle = CircleParticleComponent(
         position: position.clone() + Vector2(size.x / 2, size.y / 2),
@@ -101,9 +97,12 @@ class LetterComponent extends PositionComponent with HasGameRef<LetterGame> {
       gameRef.add(particle);
     }
   }
+
+  void pause() => _paused = true;
+  void resume() => _paused = false;
 }
 
-/// Minimal particle for 1.35.1
+/// Minimal particle for Flame 1.35.1
 class CircleParticleComponent extends PositionComponent {
   final Vector2 velocity;
   final Paint paint;
@@ -126,9 +125,7 @@ class CircleParticleComponent extends PositionComponent {
   void update(double dt) {
     super.update(dt);
     _age += dt;
-    if (_age >= lifespan) {
-      removeFromParent();
-    }
+    if (_age >= lifespan) removeFromParent();
     position += velocity * dt;
   }
 
