@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../game/user_settings.dart';
 import 'game_screen.dart';
 
 class LoadingScreen extends StatefulWidget {
-  final UserSettings settings;
+  final UserSettings settings; // Accept settings now
 
   const LoadingScreen({super.key, required this.settings});
 
@@ -24,6 +25,8 @@ class _LoadingScreenState extends State<LoadingScreen> {
     super.initState();
     selectedMode = widget.settings.mode;
     selectedTheme = widget.settings.theme;
+    selectedDuration = widget.settings.timedDurationSeconds;
+    customColor = widget.settings.customColor ?? Colors.grey;
   }
 
   @override
@@ -34,21 +37,20 @@ class _LoadingScreenState extends State<LoadingScreen> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              const Text(
-                'Keystorm',
-                style: TextStyle(
-                  fontSize: 42,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+              // Hero logo for smooth transition from splash screen
+              Hero(
+                tag: 'keystorm-logo',
+                child: SvgPicture.asset(
+                  'assets/images/keystorm_cloud.svg',
+                  width: 150,
+                  height: 150,
                 ),
               ),
               const SizedBox(height: 40),
 
               // MODE SELECTION
-              const Text("Select Mode",
-                  style: TextStyle(color: Colors.white)),
+              const Text("Select Mode", style: TextStyle(color: Colors.white)),
               const SizedBox(height: 10),
-
               Wrap(
                 spacing: 10,
                 children: GameMode.values.map((mode) {
@@ -65,28 +67,26 @@ class _LoadingScreenState extends State<LoadingScreen> {
               if (selectedMode == GameMode.timed) ...[
                 const SizedBox(height: 20),
                 Text(
-                 "Duration: ${selectedDuration ~/ 60}m ${selectedDuration % 60}s",
+                  "Duration: ${selectedDuration ~/ 60}m ${selectedDuration % 60}s",
                   style: const TextStyle(color: Colors.white),
                 ),
                 Slider(
-                value: selectedDuration.toDouble(),
-                min: 30,        // minimum 30s
-                max: 300,       // maximum 5 minutes
-                divisions: 9,   // 30, 60, 90, ..., 300
-                label: '${selectedDuration ~/ 60}m ${selectedDuration % 60}s',
-                onChanged: (value) {
-                  setState(() => selectedDuration = (value ~/ 30 * 30)); // snap to multiples of 30
-                },
-              ),
+                  value: selectedDuration.toDouble(),
+                  min: 30,
+                  max: 300,
+                  divisions: 9,
+                  label: '${selectedDuration ~/ 60}m ${selectedDuration % 60}s',
+                  onChanged: (value) {
+                    setState(() => selectedDuration = (value ~/ 30 * 30));
+                  },
+                ),
               ],
 
               const SizedBox(height: 30),
 
               // THEME SELECTION
-              const Text("Select Theme",
-                  style: TextStyle(color: Colors.white)),
+              const Text("Select Theme", style: TextStyle(color: Colors.white)),
               const SizedBox(height: 10),
-
               Wrap(
                 spacing: 10,
                 children: GameTheme.values.map((theme) {
@@ -123,8 +123,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          GameScreen(settings: settings),
+                      builder: (_) => GameScreen(settings: settings),
                     ),
                   );
                 },
