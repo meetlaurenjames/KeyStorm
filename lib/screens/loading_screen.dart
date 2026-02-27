@@ -6,7 +6,7 @@ import '../game/user_settings.dart';
 import 'game_screen.dart';
 
 class LoadingScreen extends StatefulWidget {
-  final UserSettings settings; // Accept settings now
+  final UserSettings settings; // now required
 
   const LoadingScreen({super.key, required this.settings});
 
@@ -42,8 +42,8 @@ class _LoadingScreenState extends State<LoadingScreen> {
                 tag: 'keystorm-logo',
                 child: SvgPicture.asset(
                   'assets/images/keystorm_cloud.svg',
-                  width: 150,
-                  height: 150,
+                  width: 200, // SAME as splash screen
+                  height: 200, // SAME as splash screen
                 ),
               ),
               const SizedBox(height: 40),
