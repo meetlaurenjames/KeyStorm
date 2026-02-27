@@ -11,10 +11,9 @@ import 'letter_component.dart';
 
 class LetterGame extends FlameGame {
   final UserSettings settings;
+  final Random random = Random();
 
   LetterGame({required this.settings});
-
-  final Random _random = Random();
 
   final ValueNotifier<int> scoreNotifier = ValueNotifier(0);
   final ValueNotifier<int> timeNotifier = ValueNotifier(0);
@@ -63,8 +62,8 @@ class LetterGame extends FlameGame {
   void _spawnLetter() {
     if (size.x <= 0) return;
 
-    final letter = String.fromCharCode(_random.nextInt(26) + 65);
-    final x = _random.nextDouble() * (size.x - 40);
+    final letter = String.fromCharCode(random.nextInt(26) + 65);
+    final x = random.nextDouble() * (size.x - 40);
 
     final component = LetterComponent(
       letter: letter,
@@ -76,7 +75,6 @@ class LetterGame extends FlameGame {
     letters.add(component);
   }
 
-  /// ← NEW METHOD for Windows & Desktop keyboard input
   void handleKey(String key) {
     final pressed = key.toUpperCase();
     if (pressed.length != 1) return;
@@ -84,8 +82,8 @@ class LetterGame extends FlameGame {
     for (final letter in letters.toList()) {
       if (letter.letter.toUpperCase() == pressed) {
         scoreNotifier.value++;
+        letter.hit(); // triggers bounce + glow + particles
         letters.remove(letter);
-        letter.removeFromParent();
         _increaseDifficulty();
         return;
       }
