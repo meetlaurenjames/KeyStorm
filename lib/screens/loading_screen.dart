@@ -65,20 +65,19 @@ class _LoadingScreenState extends State<LoadingScreen> {
               if (selectedMode == GameMode.timed) ...[
                 const SizedBox(height: 20),
                 Text(
-                  "Duration: $selectedDuration seconds",
+                 "Duration: ${selectedDuration ~/ 60}m ${selectedDuration % 60}s",
                   style: const TextStyle(color: Colors.white),
                 ),
                 Slider(
-                  value: selectedDuration.toDouble(),
-                  min: 10,
-                  max: 120,
-                  divisions: 11,
-                  label: selectedDuration.toString(),
-                  onChanged: (value) {
-                    setState(() =>
-                        selectedDuration = value.toInt());
-                  },
-                ),
+                value: selectedDuration.toDouble(),
+                min: 30,        // minimum 30s
+                max: 300,       // maximum 5 minutes
+                divisions: 9,   // 30, 60, 90, ..., 300
+                label: '${selectedDuration ~/ 60}m ${selectedDuration % 60}s',
+                onChanged: (value) {
+                  setState(() => selectedDuration = (value ~/ 30 * 30)); // snap to multiples of 30
+                },
+              ),
               ],
 
               const SizedBox(height: 30),

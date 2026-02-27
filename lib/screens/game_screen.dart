@@ -53,6 +53,7 @@ class _GameScreenState extends State<GameScreen> {
     return Scaffold(
       body: Stack(
         children: [
+          /// Invisible TextField to force keyboard
           Positioned(
             bottom: 0,
             left: 0,
@@ -72,6 +73,7 @@ class _GameScreenState extends State<GameScreen> {
             ),
           ),
 
+          /// Game widget
           GameWidget(
             game: game,
             overlayBuilderMap: {
@@ -137,6 +139,7 @@ class _GameScreenState extends State<GameScreen> {
             },
           ),
 
+          /// HUD (Score + Timer + Zen pause/resume)
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(12),
@@ -146,6 +149,7 @@ class _GameScreenState extends State<GameScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      /// Score
                       ValueListenableBuilder<int>(
                         valueListenable: game.scoreNotifier,
                         builder: (context, score, _) => Text(
@@ -158,15 +162,20 @@ class _GameScreenState extends State<GameScreen> {
                         ),
                       ),
 
+                      /// Timed mode: MM:SS
                       if (widget.settings.mode == GameMode.timed)
                         ValueListenableBuilder<int>(
                           valueListenable: game.timeNotifier,
-                          builder: (context, secondsLeft, _) {
-                            final color = secondsLeft <= 5
+                          builder: (context, totalSeconds, _) {
+                            final minutes = totalSeconds ~/ 60;
+                            final seconds = totalSeconds % 60;
+
+                            final color = totalSeconds <= 5
                                 ? Colors.red
-                                : (secondsLeft <= 10 ? Colors.yellow : Colors.white);
+                                : (totalSeconds <= 10 ? Colors.yellow : Colors.white);
+
                             return Text(
-                              'Time: $secondsLeft',
+                              'Time: ${minutes}:${seconds.toString().padLeft(2, '0')}',
                               style: GoogleFonts.orbitron(
                                 color: color,
                                 fontSize: 20,
@@ -178,6 +187,7 @@ class _GameScreenState extends State<GameScreen> {
                     ],
                   ),
 
+                  /// Zen mode pause/resume/stop
                   if (widget.settings.mode == GameMode.zen) ...[
                     const SizedBox(height: 10),
                     Row(
