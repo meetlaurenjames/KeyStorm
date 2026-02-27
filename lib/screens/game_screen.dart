@@ -23,6 +23,7 @@ class _GameScreenState extends State<GameScreen> {
   final TextEditingController _controller = TextEditingController();
 
   bool zenPaused = false;
+  bool zenStopped = false; // Zen stop flag
 
   @override
   void initState() {
@@ -89,18 +90,19 @@ class _GameScreenState extends State<GameScreen> {
                         ValueListenableBuilder<int>(
                           valueListenable: g.scoreNotifier,
                           builder: (context, score, _) {
-                            return ValueListenableBuilder<int>(
-                              valueListenable: g.highScoreNotifier,
-                              builder: (context, highScore, _) {
-                                return Text(
-                                  'Game Over\nScore: $score\nHigh Score: $highScore',
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.orbitron(
-                                    color: Colors.white,
-                                    fontSize: 24,
-                                  ),
-                                );
-                              },
+                            String displayText = 'Game Over\nScore: $score';
+
+                            if (widget.settings.mode == GameMode.survival) {
+                              displayText += '\nHigh Score: ${g.highScoreNotifier.value}';
+                            }
+
+                            return Text(
+                              displayText,
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.orbitron(
+                                color: Colors.white,
+                                fontSize: 24,
+                              ),
                             );
                           },
                         ),
@@ -111,6 +113,10 @@ class _GameScreenState extends State<GameScreen> {
                             ElevatedButton(
                               onPressed: () {
                                 g.reset();
+                                setState(() {
+                                  zenPaused = false;
+                                  zenStopped = false; // reset Zen flag
+                                });
                                 _focusNode.requestFocus();
                               },
                               child: const Text('Restart'),
@@ -139,7 +145,7 @@ class _GameScreenState extends State<GameScreen> {
             },
           ),
 
-          /// HUD (Score + Timer + Zen pause/resume)
+          /// HUD (Score + Timer + Zen pause/resume/stop)
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(12),
@@ -149,7 +155,7 @@ class _GameScreenState extends State<GameScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      /// Score
+                      /// Score (always show)
                       ValueListenableBuilder<int>(
                         valueListenable: game.scoreNotifier,
                         builder: (context, score, _) => Text(
@@ -162,18 +168,16 @@ class _GameScreenState extends State<GameScreen> {
                         ),
                       ),
 
-                      /// Timed mode: MM:SS
+                      /// Timed mode: show timer
                       if (widget.settings.mode == GameMode.timed)
                         ValueListenableBuilder<int>(
                           valueListenable: game.timeNotifier,
                           builder: (context, totalSeconds, _) {
                             final minutes = totalSeconds ~/ 60;
                             final seconds = totalSeconds % 60;
-
                             final color = totalSeconds <= 5
                                 ? Colors.red
                                 : (totalSeconds <= 10 ? Colors.yellow : Colors.white);
-
                             return Text(
                               'Time: ${minutes}:${seconds.toString().padLeft(2, '0')}',
                               style: GoogleFonts.orbitron(
@@ -188,7 +192,7 @@ class _GameScreenState extends State<GameScreen> {
                   ),
 
                   /// Zen mode pause/resume/stop
-                  if (widget.settings.mode == GameMode.zen) ...[
+                  if (widget.settings.mode == GameMode.zen && !zenStopped) ...[
                     const SizedBox(height: 10),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -221,15 +225,16 @@ class _GameScreenState extends State<GameScreen> {
                                   setState(() {
                                     game.gameOver();
                                     zenPaused = false;
+                                    zenStopped = true;
                                   });
                                 },
                                 child: const Text('Stop'),
                               ),
                             ],
-                          )
+                          ),
                       ],
                     ),
-                  ]
+                  ],
                 ],
               ),
             ),

@@ -141,18 +141,20 @@ class LetterGame extends FlameGame {
   }
 
   void gameOver() async {
-    _spawnTimer?.cancel();
-    _timeTimer?.cancel();
-    pauseEngine();
+  _spawnTimer?.cancel();
+  _timeTimer?.cancel();
+  pauseEngine();
 
-    if (scoreNotifier.value > highScoreNotifier.value) {
-      highScoreNotifier.value = scoreNotifier.value;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('highscore', highScoreNotifier.value);
-    }
-
-    overlays.add('GameOver');
+  // Only update high score for Survival mode
+  if (settings.mode == GameMode.survival &&
+      scoreNotifier.value > highScoreNotifier.value) {
+    highScoreNotifier.value = scoreNotifier.value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('highscore', highScoreNotifier.value);
   }
+
+  overlays.add('GameOver');
+}
 
   Future<void> _loadHighScore() async {
     final prefs = await SharedPreferences.getInstance();
