@@ -160,18 +160,48 @@ class LetterGame extends FlameGame {
   }
 
   void reset() {
+    // Remove all letters
     for (final letter in letters.toList()) {
       letter.removeFromParent();
     }
-
     letters.clear();
+
+    // Reset stats
     scoreNotifier.value = 0;
     _letterSpeed = 120;
     _spawnInterval = 1.2;
-
-    overlays.remove('GameOver');
     _isPaused = false;
-    resumeEngine();
+
+    // Remove GameOver overlay if present
+    overlays.remove('GameOver');
+
+    // Stop any existing timers
+    _spawnTimer?.cancel();
+    _timeTimer?.cancel();
+
+    // Timed mode: reset time and timer
+    if (settings.mode == GameMode.timed) {
+      timeNotifier.value = settings.timedDurationSeconds;
+
+      _timeTimer = async.Timer.periodic(
+        const Duration(seconds: 1),
+        (timer) {
+          if (!_isPaused) {
+            if (timeNotifier.value > 0) {
+              timeNotifier.value--;
+            } else {
+              timer.cancel();
+              gameOver();
+            }
+          }
+        },
+      );
+    }
+
+    // Start spawning letters again
     _startSpawning();
+
+    // Resume the engine
+    resumeEngine();
   }
 }
