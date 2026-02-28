@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flame/game.dart';
+import 'package:video_player/video_player.dart';
 import '../game/letter_game.dart';
 import '../game/user_settings.dart';
 import 'loading_screen.dart';
@@ -9,7 +9,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 class GameScreen extends StatefulWidget {
   final UserSettings settings;
-
   const GameScreen({super.key, required this.settings});
 
   @override
@@ -22,17 +21,31 @@ class _GameScreenState extends State<GameScreen> {
   final TextEditingController _controller = TextEditingController();
 
   bool zenPaused = false;
-  bool zenStopped = false; // Zen stop flag
-  bool gameStarted = false; // for logo animation
+  bool zenStopped = false;
+
+  VideoPlayerController? _videoController;
 
   @override
   void initState() {
     super.initState();
+
+    // Initialize the game
     game = LetterGame(settings: widget.settings);
 
+    // Initialize background video
+    final videoPath = widget.settings.backgroundVideo;
+    if (videoPath != null) {
+      _videoController = VideoPlayerController.asset(videoPath)
+        ..setLooping(true)
+        ..initialize().then((_) {
+          setState(() {});
+          _videoController!.play();
+        });
+    }
+
+    // Focus keyboard after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
-      setState(() => gameStarted = true);
     });
   }
 
@@ -40,6 +53,7 @@ class _GameScreenState extends State<GameScreen> {
   void dispose() {
     _focusNode.dispose();
     _controller.dispose();
+    _videoController?.dispose();
     super.dispose();
   }
 
@@ -52,144 +66,138 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
       body: Stack(
         children: [
-          // Invisible TextField to force keyboard
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Opacity(
-              opacity: 0.0,
-              child: TextField(
-                controller: _controller,
-                focusNode: _focusNode,
-                autofocus: true,
-                onChanged: _handleTextInput,
-                enableSuggestions: false,
-                autocorrect: false,
-                showCursor: false,
-                decoration: const InputDecoration(border: InputBorder.none),
+          // 1️⃣ Video background or solid color
+          if (_videoController != null && _videoController!.value.isInitialized)
+            Positioned.fill(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: _videoController!.value.size.width,
+                  height: _videoController!.value.size.height,
+                  child: VideoPlayer(_videoController!),
+                ),
+              ),
+            )
+          else
+            Container(color: widget.settings.backgroundColor),
+
+          // 2️⃣ GameWidget (letters)
+          Positioned.fill(
+            child: GameWidget(
+              game: game,
+              backgroundBuilder: (_) => Container(color: Colors.transparent),
+              overlayBuilderMap: {
+                'GameOver': (context, gameInstance) {
+                  final g = gameInstance as LetterGame;
+                  return Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      color: Colors.black87,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ValueListenableBuilder<int>(
+                            valueListenable: g.scoreNotifier,
+                            builder: (context, score, _) {
+                              String displayText = 'Game Over\nScore: $score';
+                              if (widget.settings.mode == GameMode.survival) {
+                                displayText +=
+                                    '\nHigh Score: ${g.highScoreNotifier.value}';
+                              }
+                              return Text(
+                                displayText,
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.orbitron(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 20),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ElevatedButton(
+                                onPressed: () {
+                                  g.reset();
+                                  setState(() {
+                                    zenPaused = false;
+                                    zenStopped = false;
+                                  });
+                                  _focusNode.requestFocus();
+                                },
+                                child: const Text('Restart'),
+                              ),
+                              const SizedBox(width: 12),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.of(context).pushAndRemoveUntil(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          LoadingScreen(settings: widget.settings),
+                                    ),
+                                    (route) => false,
+                                  );
+                                },
+                                child: const Text('Main Menu'),
+                              ),
+                            ],
+                          )
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              },
+            ),
+          ),
+
+          // 3️⃣ Cloud logo on top
+          Hero(
+            tag: 'keystorm-logo',
+            child: TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 1.0, end: 0.35),
+              duration: const Duration(seconds: 1),
+              curve: Curves.easeOut,
+              builder: (context, heightFactor, child) {
+                return Align(
+                  alignment: Alignment.topCenter,
+                  child: ClipRect(
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      heightFactor: heightFactor,
+                      child: child,
+                    ),
+                  ),
+                );
+              },
+              child: SvgPicture.asset(
+                'assets/images/keystorm_cloud.svg',
+                width: 230,
+                height: 230,
+                fit: BoxFit.cover,
               ),
             ),
           ),
 
-          // Game widget
-          GameWidget(
-            game: game,
-            overlayBuilderMap: {
-              'GameOver': (context, gameInstance) {
-                final g = gameInstance as LetterGame;
-                return Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(20),
-                    color: Colors.black87,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ValueListenableBuilder<int>(
-                          valueListenable: g.scoreNotifier,
-                          builder: (context, score, _) {
-                            String displayText = 'Game Over\nScore: $score';
-                            if (widget.settings.mode == GameMode.survival) {
-                              displayText += '\nHigh Score: ${g.highScoreNotifier.value}';
-                            }
-                            return Text(
-                              displayText,
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.orbitron(
-                                color: Colors.white,
-                                fontSize: 24,
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 20),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ElevatedButton(
-                              onPressed: () {
-                                g.reset();
-                                setState(() {
-                                  zenPaused = false;
-                                  zenStopped = false;
-                                  gameStarted = true;
-                                });
-                                _focusNode.requestFocus();
-                              },
-                              child: const Text('Restart'),
-                            ),
-                            const SizedBox(width: 12),
-                            ElevatedButton(
-                              onPressed: () {
-                                Navigator.of(context).pushAndRemoveUntil(
-                                  MaterialPageRoute(
-                                    builder: (_) => LoadingScreen(
-                                      settings: widget.settings,
-                                    ),
-                                  ),
-                                  (route) => false,
-                                );
-                              },
-                              child: const Text('Main Menu'),
-                            ),
-                          ],
-                        )
-                      ],
-                    ),
-                  ),
-                );
-              }
-            },
-          ),
-
-          /// Cloud logo (partially off-screen top, show only bottom)
-          /// Cloud logo with smooth Hero transition
-          /// Cloud logo: full during Hero transition, then move up and clip
-        /// Cloud logo: starts full, then moves up and gets clipped
-        Hero(
-          tag: 'keystorm-logo',
-          child: TweenAnimationBuilder<double>(
-            tween: Tween<double>(begin: 1.0, end: 0.35),
-            duration: const Duration(seconds: 1),
-            curve: Curves.easeOut,
-            builder: (context, heightFactor, child) {
-              return Align(
-                alignment: Alignment.topCenter,
-                child: ClipRect(
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    heightFactor: heightFactor, // 1.0 = full cloud, 0.35 = clipped
-                    child: child,
-                  ),
-                ),
-              );
-            },
-            child: SvgPicture.asset(
-              'assets/images/keystorm_cloud.svg',
-              width: 230,
-              height: 230,
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-          /// HUD below the cloud
+          // 4️⃣ HUD + Zen buttons
           Positioned(
-            top: screenHeight * 0.1, // slightly below cloud bottom
+            top: screenHeight * 0.1,
             left: 12,
             right: 12,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                // Score + Timer Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    /// Score (always show)
                     ValueListenableBuilder<int>(
                       valueListenable: game.scoreNotifier,
                       builder: (context, score, _) => Text(
@@ -201,8 +209,6 @@ class _GameScreenState extends State<GameScreen> {
                         ),
                       ),
                     ),
-
-                    /// Timed mode: show timer
                     if (widget.settings.mode == GameMode.timed)
                       ValueListenableBuilder<int>(
                         valueListenable: game.timeNotifier,
@@ -225,7 +231,7 @@ class _GameScreenState extends State<GameScreen> {
                   ],
                 ),
 
-                /// Zen mode pause/resume/stop
+                // Zen Pause / Resume / Stop buttons
                 if (widget.settings.mode == GameMode.zen && !zenStopped) ...[
                   const SizedBox(height: 10),
                   Row(
@@ -241,35 +247,52 @@ class _GameScreenState extends State<GameScreen> {
                           },
                           child: const Text('Pause'),
                         ),
-                      if (zenPaused)
-                        Row(
-                          children: [
-                            ElevatedButton(
-                              onPressed: () {
-                                setState(() {
-                                  zenPaused = false;
-                                  game.resumeZen();
-                                });
-                              },
-                              child: const Text('Resume'),
-                            ),
-                            const SizedBox(width: 10),
-                            ElevatedButton(
-                              onPressed: () {
-                                setState(() {
-                                  game.gameOver();
-                                  zenPaused = false;
-                                  zenStopped = true;
-                                });
-                              },
-                              child: const Text('Stop'),
-                            ),
-                          ],
+                      if (zenPaused) ...[
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              zenPaused = false;
+                              game.resumeZen();
+                            });
+                          },
+                          child: const Text('Resume'),
                         ),
+                        const SizedBox(width: 10),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              game.gameOver();
+                              zenPaused = false;
+                              zenStopped = true;
+                            });
+                          },
+                          child: const Text('Stop'),
+                        ),
+                      ],
                     ],
                   ),
                 ],
               ],
+            ),
+          ),
+
+          // 5️⃣ Invisible TextField for keyboard input
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Opacity(
+              opacity: 0.0,
+              child: TextField(
+                controller: _controller,
+                focusNode: _focusNode,
+                autofocus: true,
+                onChanged: _handleTextInput,
+                enableSuggestions: false,
+                autocorrect: false,
+                showCursor: false,
+                decoration: const InputDecoration(border: InputBorder.none),
+              ),
             ),
           ),
         ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
+import 'package:keystorm/screens/game_screen.dart';
 
 import '../game/letter_game.dart';
 import '../game/user_settings.dart';
@@ -65,13 +66,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ..theme = selectedTheme
                     ..announceLetters = sayLetterName;
 
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          GameWidget(game: LetterGame(settings: settings)),
-                    ),
-                  );
+                 ElevatedButton(
+                    onPressed: () {
+                      final settings = UserSettings()
+                        ..mode = widget.selectedMode
+                        ..theme = selectedTheme
+                        ..announceLetters = sayLetterName;
+
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => GameScreen(settings: settings), // 👈 HERE
+                        ),
+                      );
+                    },
+                    child: const Text('Start Game'),
+                  ),
                 },
                 child: const Text('Start Game'),
               ),

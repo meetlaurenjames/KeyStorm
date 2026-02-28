@@ -1,11 +1,9 @@
 import 'dart:async' as async;
 import 'dart:math';
-
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'user_settings.dart';
 import 'letter_component.dart';
 
@@ -26,7 +24,7 @@ class LetterGame extends FlameGame {
   double _letterSpeed = 120;
 
   final List<LetterComponent> letters = [];
-  bool _isPaused = false; // Zen pause flag
+  bool _isPaused = false;
 
   @override
   Future<void> onLoad() async {
@@ -35,7 +33,6 @@ class LetterGame extends FlameGame {
 
     if (settings.mode == GameMode.timed) {
       timeNotifier.value = settings.timedDurationSeconds;
-
       _timeTimer = async.Timer.periodic(
         const Duration(seconds: 1),
         (timer) {
@@ -66,16 +63,13 @@ class LetterGame extends FlameGame {
 
   void _spawnLetter() {
     if (size.x <= 0) return;
-
     final letter = String.fromCharCode(random.nextInt(26) + 65);
     final x = random.nextDouble() * (size.x - 40);
-
     final component = LetterComponent(
       letter: letter,
       position: Vector2(x, 0),
       speed: _letterSpeed,
     );
-
     add(component);
     letters.add(component);
   }
@@ -87,7 +81,7 @@ class LetterGame extends FlameGame {
     pauseEngine();
     _spawnTimer?.cancel();
     for (final letter in letters) {
-      letter.pause(); // freezes letters
+      letter.pause();
     }
   }
 
@@ -104,20 +98,17 @@ class LetterGame extends FlameGame {
 
   void handleKey(String key) {
     if (_isPaused && settings.mode == GameMode.zen) return;
-
     final pressed = key.toUpperCase();
     if (pressed.length != 1) return;
-
     for (final letter in letters.toList()) {
       if (letter.letter.toUpperCase() == pressed) {
         scoreNotifier.value++;
-        letter.hit(); // triggers bounce + glow + particles
+        letter.hit();
         letters.remove(letter);
         _increaseDifficulty();
         return;
       }
     }
-
     if (settings.mode == GameMode.survival) {
       gameOver();
     }
@@ -125,12 +116,19 @@ class LetterGame extends FlameGame {
 
   @override
   void render(Canvas canvas) {
-    canvas.drawRect(
-      size.toRect(),
-      Paint()..color = settings.backgroundColor,
-    );
+    // Only draw background if there is NO video
+    if (settings.backgroundVideo == null) {
+      canvas.drawRect(
+        size.toRect(),
+        Paint()..color = settings.backgroundColor,
+      );
+    }
     super.render(canvas);
   }
+
+  // Make Flame transparent so video shows behind
+  @override
+  Color backgroundColor() => Colors.transparent;
 
   void _increaseDifficulty() {
     if (scoreNotifier.value % 10 == 0 && scoreNotifier.value > 0) {
@@ -141,20 +139,19 @@ class LetterGame extends FlameGame {
   }
 
   void gameOver() async {
-  _spawnTimer?.cancel();
-  _timeTimer?.cancel();
-  pauseEngine();
+    _spawnTimer?.cancel();
+    _timeTimer?.cancel();
+    pauseEngine();
 
-  // Only update high score for Survival mode
-  if (settings.mode == GameMode.survival &&
-      scoreNotifier.value > highScoreNotifier.value) {
-    highScoreNotifier.value = scoreNotifier.value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('highscore', highScoreNotifier.value);
+    if (settings.mode == GameMode.survival &&
+        scoreNotifier.value > highScoreNotifier.value) {
+      highScoreNotifier.value = scoreNotifier.value;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('highscore', highScoreNotifier.value);
+    }
+
+    overlays.add('GameOver');
   }
-
-  overlays.add('GameOver');
-}
 
   Future<void> _loadHighScore() async {
     final prefs = await SharedPreferences.getInstance();
@@ -162,29 +159,23 @@ class LetterGame extends FlameGame {
   }
 
   void reset() {
-    // Remove all letters
     for (final letter in letters.toList()) {
       letter.removeFromParent();
     }
     letters.clear();
 
-    // Reset stats
     scoreNotifier.value = 0;
     _letterSpeed = 120;
     _spawnInterval = 1.2;
     _isPaused = false;
 
-    // Remove GameOver overlay if present
     overlays.remove('GameOver');
 
-    // Stop any existing timers
     _spawnTimer?.cancel();
     _timeTimer?.cancel();
 
-    // Timed mode: reset time and timer
     if (settings.mode == GameMode.timed) {
       timeNotifier.value = settings.timedDurationSeconds;
-
       _timeTimer = async.Timer.periodic(
         const Duration(seconds: 1),
         (timer) {
@@ -200,10 +191,7 @@ class LetterGame extends FlameGame {
       );
     }
 
-    // Start spawning letters again
     _startSpawning();
-
-    // Resume the engine
     resumeEngine();
   }
 }

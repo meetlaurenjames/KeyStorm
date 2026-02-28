@@ -10,6 +10,7 @@ class UserSettings {
   int timedDurationSeconds = 60;
   bool announceLetters = true;
 
+  /// Returns a solid color for UI fallback / custom theme
   Color get backgroundColor {
     switch (theme) {
       case GameTheme.space:
@@ -20,6 +21,20 @@ class UserSettings {
         return Colors.blue.shade900;
       case GameTheme.custom:
         return customColor;
+    }
+  }
+
+  /// Returns the asset path for video background if applicable
+  String? get backgroundVideo {
+    switch (theme) {
+      case GameTheme.space:
+        return 'assets/videos/space_loop.mp4';
+      case GameTheme.forest:
+        return 'assets/videos/forest_loop.mp4';
+      case GameTheme.ocean:
+        return 'assets/videos/ocean_loop.mp4';
+      case GameTheme.custom:
+        return null; // custom theme uses solid color
     }
   }
 }
