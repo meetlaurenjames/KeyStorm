@@ -33,9 +33,11 @@ class _LoadingScreenState extends State<LoadingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Center(
+      body: SafeArea(
         child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
           child: Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Hero logo for smooth transition from splash screen
               Hero(
@@ -102,12 +104,20 @@ class _LoadingScreenState extends State<LoadingScreen> {
 
               if (selectedTheme == GameTheme.custom) ...[
                 const SizedBox(height: 20),
-                BlockPicker(
+               BlockPicker(
                   pickerColor: customColor,
                   onColorChanged: (color) {
                     setState(() => customColor = color);
                   },
-                )
+                  layoutBuilder: (context, colors, child) {
+                    return GridView.count(
+                      crossAxisCount: 7, // 🔥 FORCE 7 per row 
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: colors.map((color) => child(color)).toList(),
+                    );
+                  },
+                ),
               ],
 
               const SizedBox(height: 40),
